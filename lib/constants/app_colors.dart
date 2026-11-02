@@ -17,4 +17,6 @@ class AppColors {
   static const avatarGray = Color(0xFFD6D6D6);
   static const avatarIconGray = Color(0xFF4A4A4A);
   static const logoutRed = Color(0xFFE53935);
+  static const statusGreen = Color(0xFF4CAF50);
+  static const statusRed = Color(0xFFE53935);
 }
