@@ -36,6 +36,7 @@ class ReportRowData {
   }
 }
 
+/// Store terpusat untuk status verifikasi laporan Kepala Divisi dan Kepala RS.
 class ReportStore extends ChangeNotifier {
   ReportStore._();
 
