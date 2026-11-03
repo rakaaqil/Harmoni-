@@ -12,6 +12,7 @@ import 'widgets/admin/admin_search_bar.dart';
 import 'widgets/admin/user_form_sheet.dart';
 import 'widgets/admin/user_table.dart';
 
+/// Halaman manajemen data pengguna Super Admin (daftar, tambah, edit, dan ubah status).
 class AdminDataPenggunaPage extends StatefulWidget {
   /// Optional seam for tests; defaults to live Firestore query.
   final Stream<List<Map<String, dynamic>>>? Function()? usersStream;

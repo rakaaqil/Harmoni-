@@ -11,6 +11,7 @@ const userTablePageSize = 15;
 const _maxDots = 6;
 
 /// Card containing the paginated "Daftar Data Pengguna" table.
+/// Tabel daftar pengguna dengan dukungan seleksi baris untuk aksi edit.
 class UserTable extends StatelessWidget {
   final List<Map<String, dynamic>> users;
   final int page;

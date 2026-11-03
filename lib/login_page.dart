@@ -14,6 +14,7 @@ const _teal = Color(0xFF12B5AE);
 const _inputBg = Color(0xFFD9D9D9);
 const _placeholderGray = Color(0xFF6B6B6B);
 
+/// Halaman login dengan validasi autentikasi dan status aktif pengguna.
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
 
