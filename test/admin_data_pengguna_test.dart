@@ -45,7 +45,6 @@ Widget _app() => MaterialApp(
   home: const AdminDataPenggunaPage(usersStream: _stream),
 );
 
-// Pengujian daftar, tambah, edit, dan aktivasi/nonaktivasi pengguna.
 void main() {
   testWidgets('admin page lists all users', (tester) async {
     await tester.pumpWidget(_app());

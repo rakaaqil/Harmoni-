@@ -11,7 +11,6 @@ Future<String?> showRejectionReasonDialog(BuildContext context) {
 }
 
 /// Report detail with RPP Polibatam document preview.
-/// Halaman detail laporan dan aksi review berjenjang (Terima / Tandai Di Terima / Tolak).
 class LaporanDetailPage extends StatelessWidget {
   final String? reportNo;
   final String title;

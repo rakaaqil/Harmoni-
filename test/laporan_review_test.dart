@@ -23,7 +23,6 @@ Future<void> _size(WidgetTester tester, [Size s = const Size(440, 956)]) async {
 final _tinjau = find.byKey(const ValueKey('tinjau-laporan-masuk'));
 
 void main() {
-  // Pengujian alur review laporan berjenjang Kepala Divisi dan Kepala RS.
   setUp(() {
     ReportStore.instance.reset();
   });

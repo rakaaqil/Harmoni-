@@ -5,7 +5,6 @@ import 'tinjau_laporan_page.dart';
 import 'widgets/review_bar.dart';
 import 'widgets/role_dashboard_scaffold.dart';
 
-/// Dashboard Kepala Rumah Sakit dengan navigasi ke peninjauan laporan lanjutan.
 class KepalaRsDashboardPage extends StatelessWidget {
   final UserProfile profile;
   const KepalaRsDashboardPage({super.key, required this.profile});

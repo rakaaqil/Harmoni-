@@ -22,7 +22,6 @@ class _TinjauRow {
   });
 }
 
-/// Halaman peninjauan laporan masuk untuk Kepala Divisi dan Kepala Rumah Sakit.
 class TinjauLaporanPage extends StatefulWidget {
   final bool isKepalaRs;
 
