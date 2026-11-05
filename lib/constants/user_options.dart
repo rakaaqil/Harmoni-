@@ -1,7 +1,6 @@
 /// Shared option lists and label helpers for user management.
 library;
 
-/// Opsi role, divisi, dan status pengguna untuk manajemen akun.
 const roles = ['staff_divisi', 'kepala_divisi', 'kepala_rs', 'super_admin'];
 
 const divisions = [
