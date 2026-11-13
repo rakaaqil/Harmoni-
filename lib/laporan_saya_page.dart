@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import 'constants/app_colors.dart';
@@ -112,11 +114,48 @@ class _LaporanSayaPageState extends State<LaporanSayaPage> {
     ),
   ];
 
+  static const _allStatuses = {'Ditolak', 'Ditandai'};
+
+  final _searchController = TextEditingController();
+  String _query = '';
+  String _selectedMonth = '2026,12';
+  final Set<String> _appliedStatuses = {..._allStatuses};
+  Set<String> _draftStatuses = {..._allStatuses};
+  bool _showFilters = false;
+
   // Index of rejected items whose description is expanded by default.
   final Set<int> _expanded = {1};
 
+  List<int> get _visibleIndices {
+    final query = _query.trim().toLowerCase();
+    final indices = <int>[];
+    for (var i = 0; i < _items.length; i++) {
+      final item = _items[i];
+      final status = item.accepted ? 'Ditandai' : 'Ditolak';
+      final matchesQuery =
+        query.isEmpty ||
+        [
+          item.title,
+          item.subtitle,
+          item.description,
+          status,
+        ].any((value) => value.toLowerCase().contains(query));
+      if (matchesQuery && _appliedStatuses.contains(status)) {
+        indices.add(i);
+      }
+    }
+    return indices;
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
+    final visibleIndices = _visibleIndices;
     return Scaffold(
       backgroundColor: AppColors.bgGray,
       body: SafeArea(
@@ -133,12 +172,13 @@ class _LaporanSayaPageState extends State<LaporanSayaPage> {
                     physics: const BouncingScrollPhysics(),
                     padding: const EdgeInsets.fromLTRB(20, 4, 20, 90),
                     child: Column(
-                      children: List.generate(_items.length, (i) {
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 12),
-                          child: _buildCard(i),
-                        );
-                      }),
+                      children: [
+                        for (final i in visibleIndices)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: _buildCard(i),
+                          ),
+                      ],
                     ),
                   ),
                 ),
@@ -146,6 +186,20 @@ class _LaporanSayaPageState extends State<LaporanSayaPage> {
             ),
             // Floating Input Laporan button
             Positioned(left: 12, bottom: 24, child: _buildInputLaporanButton()),
+            if (_showFilters) ...[
+              Positioned.fill(
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () => setState(() => _showFilters = false),
+                ),
+              ),
+              Positioned(
+                top: 101,
+                left: 0,
+                right: 0,
+                child: Center(child: _buildFilterPopup()),
+              ),
+            ],
           ],
         ),
       ),
@@ -222,8 +276,15 @@ class _LaporanSayaPageState extends State<LaporanSayaPage> {
                   color: const Color(0xFFD9D9D9),
                   borderRadius: BorderRadius.circular(21),
                 ),
-                child: const TextField(
-                  decoration: InputDecoration(
+                child: TextField(
+                  key: const ValueKey('laporan-saya-search-field'),
+                  controller: _searchController,
+                  onChanged: (value) => setState(() => _query = value),
+                  style: const TextStyle(
+                    fontSize: 16,
+                    color: AppColors.black,
+                  ),
+                  decoration: const InputDecoration(
                     icon: Icon(
                       Icons.search_rounded,
                       color: AppColors.black,
@@ -244,52 +305,261 @@ class _LaporanSayaPageState extends State<LaporanSayaPage> {
               ),
             ),
             const SizedBox(width: 11),
-            Container(
-              height: 40,
-              width: 97,
-              decoration: BoxDecoration(
-                color: AppColors.white,
-                borderRadius: BorderRadius.circular(21),
-                border: Border.all(
-                  color: AppColors.innerBorderGray,
-                  width: 1.5,
+            InkWell(
+              key: const ValueKey('laporan-saya-filter-button'),
+              borderRadius: BorderRadius.circular(21),
+              onTap: _openFilters,
+              child: Container(
+                height: 40,
+                width: 97,
+                decoration: BoxDecoration(
+                  color: AppColors.white,
+                  borderRadius: BorderRadius.circular(21),
+                  border: Border.all(
+                    color: AppColors.innerBorderGray,
+                    width: 1.5,
+                  ),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Color(0x35000000),
+                      blurRadius: 5,
+                      offset: Offset(0, 2),
+                    ),
+                  ],
                 ),
-                boxShadow: const [
-                  BoxShadow(
-                    color: Color(0x35000000),
-                    blurRadius: 5,
-                    offset: Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: const Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.filter_alt_outlined,
-                    color: AppColors.black,
-                    size: 22,
-                  ),
-                  SizedBox(width: 5),
-                  Flexible(
-                    child: Text(
-                      'Filter',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.black,
+                child: const Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.filter_alt_outlined,
+                      color: AppColors.black,
+                      size: 22,
+                    ),
+                    SizedBox(width: 5),
+                    Flexible(
+                      child: Text(
+                        'Filter',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.black,
+                        ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ],
         ),
       ),
     );
+  }
+
+  void _openFilters() {
+    setState(() {
+      _draftStatuses = {..._appliedStatuses};
+      _showFilters = true;
+    });
+  }
+
+  Widget _buildFilterPopup() {
+    final width = math.min(300.0, MediaQuery.sizeOf(context).width - 24);
+
+    return Material(
+      color: Colors.transparent,
+      child: Container(
+        key: const ValueKey('laporan-saya-filter-popup'),
+        width: width,
+        padding: const EdgeInsets.fromLTRB(8, 8, 8, 9),
+        decoration: BoxDecoration(
+          color: AppColors.white,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x50000000),
+              blurRadius: 9,
+              offset: Offset(0, 3),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              children: [
+                _statusChip('Ditolak', AppColors.logoutRed),
+                const SizedBox(width: 5),
+                _statusChip('Ditandai', AppColors.teal),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(child: _dateChip()),
+                const SizedBox(width: 8),
+                _applyButton(),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _statusChip(String status, Color color) {
+    final selected = _draftStatuses.contains(status);
+    return Expanded(
+      child: InkWell(
+        onTap: () => setState(() {
+          if (selected) {
+            _draftStatuses.remove(status);
+          } else {
+            _draftStatuses.add(status);
+          }
+        }),
+        borderRadius: BorderRadius.circular(17),
+        child: Container(
+          height: 36,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: selected ? color.withValues(alpha: 0.06) : AppColors.white,
+            borderRadius: BorderRadius.circular(17),
+            border: Border.all(
+              color: selected ? color : AppColors.innerBorderGray,
+            ),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x28000000),
+                blurRadius: 3,
+                offset: Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Text(
+            status,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: 11,
+              color: color,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _dateChip() {
+    return InkWell(
+      onTap: _pickDate,
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        height: 40,
+        decoration: BoxDecoration(
+          color: const Color(0xFFE0E0E0),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: AppColors.innerBorderGray),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.only(left: 9),
+                child: Text(
+                  _selectedMonth,
+                  maxLines: 1,
+                  style: const TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.black,
+                  ),
+                ),
+              ),
+            ),
+            Container(
+              width: 39,
+              height: 38,
+              decoration: const BoxDecoration(
+                color: AppColors.white,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.calendar_month_outlined,
+                size: 21,
+                color: AppColors.black,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _applyButton() {
+    return InkWell(
+      key: const ValueKey('laporan-saya-filter-apply'),
+      onTap: () => setState(() {
+        _appliedStatuses
+          ..clear()
+          ..addAll(_draftStatuses);
+        _showFilters = false;
+      }),
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        width: 82,
+        height: 40,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: AppColors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: AppColors.innerBorderGray),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x28000000),
+              blurRadius: 3,
+              offset: Offset(0, 2),
+            ),
+          ],
+        ),
+        child: const FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                'Terapkan',
+                style: TextStyle(
+                  fontSize: 11,
+                  color: AppColors.teal,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              SizedBox(width: 3),
+              Icon(Icons.check_rounded, size: 18, color: AppColors.teal),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _pickDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: DateTime(2026, 12),
+      firstDate: DateTime(2020),
+      lastDate: DateTime(2030),
+    );
+    if (picked != null && mounted) {
+      setState(
+        () => _selectedMonth =
+            '${picked.year},${picked.month.toString().padLeft(2, '0')}',
+      );
+    }
   }
 
   Widget _buildCard(int index) {
