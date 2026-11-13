@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'constants/app_colors.dart';
 import 'data/report_store.dart';
 import 'laporan_detail_page.dart';
+import 'widgets/division_sidebar.dart';
 
 class _TinjauRow {
   final String no;
@@ -32,14 +33,7 @@ class TinjauLaporanPage extends StatefulWidget {
 }
 
 class _TinjauLaporanPageState extends State<TinjauLaporanPage> {
-  static const _divisions = [
-    'Divisi Apotek',
-    'Divisi Kebidanan',
-    'Divisi Pendaftaran',
-    'Divisi Rawat Inap',
-    'Divisi Rawat Jalan',
-    'Divisi UGD',
-  ];
+  static const _divisions = kHospitalDivisions;
 
   static const _initialRows = [
     _TinjauRow(
@@ -280,11 +274,13 @@ class _TinjauLaporanPageState extends State<TinjauLaporanPage> {
                       top: 0,
                       left: 0,
                       bottom: 0,
-                      child: _TinjauDivisionSidebar(
+                      child: DivisionSidebar(
                         divisions: _divisions,
                         selectedDivision: _selectedDivision,
+                        keyPrefix: 'tinjau-division',
                         onSelect: (division) => setState(() {
                           _selectedDivision = division;
+                          _pageIndex = 0;
                           _showDivisionSidebar = false;
                         }),
                       ),
@@ -512,30 +508,41 @@ class _TinjauLaporanPageState extends State<TinjauLaporanPage> {
           final spacing = isCompact ? 6.0 : 8.0;
           return Row(
             children: [
-              GestureDetector(
-                key: const ValueKey('tinjau-division-button'),
-                onTap: () => setState(() => _showDivisionSidebar = true),
-                child: Container(
-                  width: 40,
-                  height: 40,
-                  decoration: const BoxDecoration(
-                    color: AppColors.white,
-                    shape: BoxShape.circle,
-                    border: Border.fromBorderSide(
-                      BorderSide(color: AppColors.innerBorderGray, width: 1.5),
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Color(0x35000000),
-                        blurRadius: 5,
-                        offset: Offset(0, 2),
+              Material(
+                color: Colors.transparent,
+                shape: const CircleBorder(),
+                child: InkWell(
+                  key: const ValueKey('tinjau-division-button'),
+                  customBorder: const CircleBorder(),
+                  onTap: () => setState(() {
+                    _showFilters = false;
+                    _showDivisionSidebar = !_showDivisionSidebar;
+                  }),
+                  child: Container(
+                    width: 40,
+                    height: 40,
+                    decoration: const BoxDecoration(
+                      color: AppColors.white,
+                      shape: BoxShape.circle,
+                      border: Border.fromBorderSide(
+                        BorderSide(
+                          color: AppColors.innerBorderGray,
+                          width: 1.5,
+                        ),
                       ),
-                    ],
-                  ),
-                  child: const Icon(
-                    Icons.chevron_right_rounded,
-                    color: AppColors.black,
-                    size: 29,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Color(0x35000000),
+                          blurRadius: 5,
+                          offset: Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: const Icon(
+                      Icons.chevron_right_rounded,
+                      color: AppColors.black,
+                      size: 29,
+                    ),
                   ),
                 ),
               ),
@@ -671,6 +678,7 @@ class _TinjauLaporanPageState extends State<TinjauLaporanPage> {
   void _openFilters() {
     setState(() {
       _draftStatuses = {..._appliedStatuses};
+      _showDivisionSidebar = false;
       _showFilters = true;
     });
   }
@@ -1260,66 +1268,4 @@ class _CircularArrowButton extends StatelessWidget {
       ),
     );
   }
-}
-
-class _TinjauDivisionSidebar extends StatelessWidget {
-  final List<String> divisions;
-  final String selectedDivision;
-  final ValueChanged<String> onSelect;
-
-  const _TinjauDivisionSidebar({
-    required this.divisions,
-    required this.selectedDivision,
-    required this.onSelect,
-  });
-
-  @override
-  Widget build(BuildContext context) => Material(
-    color: Colors.white,
-    elevation: 8,
-    child: SizedBox(
-      width: 228,
-      child: SafeArea(
-        bottom: false,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(19, 12, 25, 0),
-          child: ListView.separated(
-            padding: EdgeInsets.zero,
-            itemCount: divisions.length,
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            separatorBuilder: (_, _) => const SizedBox(height: 12),
-            itemBuilder: (_, index) {
-              final division = divisions[index];
-              final selected = division == selectedDivision;
-              return GestureDetector(
-                key: ValueKey('tinjau-division-$division'),
-                onTap: () => onSelect(division),
-                child: Container(
-                  height: 28,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    color: selected
-                        ? const Color(0xFF16B5AE)
-                        : const Color(0xFFD9D9D9),
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  child: Text(
-                    division,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.black,
-                    ),
-                  ),
-                ),
-              );
-            },
-          ),
-        ),
-      ),
-    ),
-  );
 }
