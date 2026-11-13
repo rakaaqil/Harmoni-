@@ -8,6 +8,7 @@ import 'input_laporan_page.dart';
 import 'laporan_detail_page.dart';
 import 'laporan_saya_page.dart';
 import 'tinjau_laporan_page.dart';
+import 'widgets/division_sidebar.dart';
 import 'widgets/floating_action_bar.dart';
 import 'widgets/review_bar.dart';
 
@@ -42,14 +43,7 @@ class LaporanDivisiPage extends StatefulWidget {
 }
 
 class _LaporanDivisiPageState extends State<LaporanDivisiPage> {
-  static const _divisions = [
-    'Divisi Apotek',
-    'Divisi Kebidanan',
-    'Divisi Pendaftaran',
-    'Divisi Rawat Inap',
-    'Divisi Rawat Jalan',
-    'Divisi UGD',
-  ];
+  static const _divisions = kHospitalDivisions;
 
   static const _initialRows = [
     _ReportRow(
@@ -154,7 +148,46 @@ class _LaporanDivisiPageState extends State<LaporanDivisiPage> {
 
   static const _allStatuses = {'Ditolak', 'Belum Ditandai', 'Ditandai'};
 
-  late final List<_ReportRow> _rows = [..._initialRows];
+  static const Map<String, (String prefix, String authorA, String authorB)>
+  _divisionMeta = {
+    'Divisi Kebidanan': ('Laporan Kebidanan', 'Siti Aminah', 'Dewi Sartika'),
+    'Divisi Pendaftaran': (
+      'Laporan Pendaftaran',
+      'Budi Santoso',
+      'Rina Wati',
+    ),
+    'Divisi Rawat Inap': (
+      'Laporan Rawat Inap',
+      'Hendra Wijaya',
+      'Nadia Putri',
+    ),
+    'Divisi Rawat Jalan': (
+      'Laporan Rawat Jalan',
+      'Fajar Pratama',
+      'Lestari Ayu',
+    ),
+    'Divisi UGD': ('Laporan UGD', 'Rizky Ramadhan', 'Maya Sari'),
+  };
+
+  late final Map<String, List<_ReportRow>> _rowsByDivision = {
+    'Divisi Apotek': [..._initialRows],
+    for (final entry in _divisionMeta.entries)
+      entry.key: List.generate(14, (i) {
+        final base = _initialRows[i];
+        final idx = (i + 1).toString().padLeft(2, '0');
+        return _ReportRow(
+          no: base.no,
+          title: '${entry.value.$1} $idx',
+          author: i.isEven ? entry.value.$2 : entry.value.$3,
+          date: base.date,
+          status: base.status,
+        );
+      }),
+  };
+
+  List<_ReportRow> get _rows =>
+      _rowsByDivision[_selectedDivision] ?? _initialRows;
+
   final _searchController = TextEditingController();
   String _selectedDivision = 'Divisi Apotek';
   int _pageIndex = 0;
@@ -258,11 +291,13 @@ class _LaporanDivisiPageState extends State<LaporanDivisiPage> {
                       top: 0,
                       left: 0,
                       bottom: 0,
-                      child: _LaporanDivisionSidebar(
+                      child: DivisionSidebar(
                         divisions: _divisions,
                         selectedDivision: _selectedDivision,
+                        keyPrefix: 'laporan-division',
                         onSelect: (division) => setState(() {
                           _selectedDivision = division;
+                          _pageIndex = 0;
                           _showDivisionSidebar = false;
                         }),
                       ),
@@ -391,30 +426,41 @@ class _LaporanDivisiPageState extends State<LaporanDivisiPage> {
           final filterWidth = constraints.maxWidth < 320 ? 82.0 : 97.0;
           return Row(
             children: [
-              GestureDetector(
-                key: const ValueKey('laporan-division-button'),
-                onTap: () => setState(() => _showDivisionSidebar = true),
-                child: Container(
-                  width: 40,
-                  height: 40,
-                  decoration: const BoxDecoration(
-                    color: AppColors.white,
-                    shape: BoxShape.circle,
-                    border: Border.fromBorderSide(
-                      BorderSide(color: AppColors.innerBorderGray, width: 1.5),
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Color(0x35000000),
-                        blurRadius: 5,
-                        offset: Offset(0, 2),
+              Material(
+                color: Colors.transparent,
+                shape: const CircleBorder(),
+                child: InkWell(
+                  key: const ValueKey('laporan-division-button'),
+                  customBorder: const CircleBorder(),
+                  onTap: () => setState(() {
+                    _showFilters = false;
+                    _showDivisionSidebar = !_showDivisionSidebar;
+                  }),
+                  child: Container(
+                    width: 40,
+                    height: 40,
+                    decoration: const BoxDecoration(
+                      color: AppColors.white,
+                      shape: BoxShape.circle,
+                      border: Border.fromBorderSide(
+                        BorderSide(
+                          color: AppColors.innerBorderGray,
+                          width: 1.5,
+                        ),
                       ),
-                    ],
-                  ),
-                  child: const Icon(
-                    Icons.chevron_right_rounded,
-                    color: AppColors.black,
-                    size: 29,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Color(0x35000000),
+                          blurRadius: 5,
+                          offset: Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: const Icon(
+                      Icons.chevron_right_rounded,
+                      color: AppColors.black,
+                      size: 29,
+                    ),
                   ),
                 ),
               ),
@@ -513,6 +559,7 @@ class _LaporanDivisiPageState extends State<LaporanDivisiPage> {
   void _openFilters() {
     setState(() {
       _draftStatuses = {..._appliedStatuses};
+      _showDivisionSidebar = false;
       _showFilters = true;
     });
   }
@@ -1040,66 +1087,4 @@ class _CircularArrowButton extends StatelessWidget {
       ),
     );
   }
-}
-
-class _LaporanDivisionSidebar extends StatelessWidget {
-  final List<String> divisions;
-  final String selectedDivision;
-  final ValueChanged<String> onSelect;
-
-  const _LaporanDivisionSidebar({
-    required this.divisions,
-    required this.selectedDivision,
-    required this.onSelect,
-  });
-
-  @override
-  Widget build(BuildContext context) => Material(
-    color: Colors.white,
-    elevation: 8,
-    child: SizedBox(
-      width: 228,
-      child: SafeArea(
-        bottom: false,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(19, 12, 25, 0),
-          child: ListView.separated(
-            padding: EdgeInsets.zero,
-            itemCount: divisions.length,
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            separatorBuilder: (_, _) => const SizedBox(height: 12),
-            itemBuilder: (_, index) {
-              final division = divisions[index];
-              final selected = division == selectedDivision;
-              return GestureDetector(
-                key: ValueKey('laporan-division-$division'),
-                onTap: () => onSelect(division),
-                child: Container(
-                  height: 28,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    color: selected
-                        ? const Color(0xFF16B5AE)
-                        : const Color(0xFFD9D9D9),
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  child: Text(
-                    division,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.black,
-                    ),
-                  ),
-                ),
-              );
-            },
-          ),
-        ),
-      ),
-    ),
-  );
 }
