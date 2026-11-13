@@ -32,6 +32,15 @@ class _AdminDataPenggunaPageState extends State<AdminDataPenggunaPage> {
 
   late final Stream<List<Map<String, dynamic>>>? _usersStream;
 
+  /// Seeded Firebase Auth users + locally added/edited users.
+  final List<Map<String, dynamic>> _localUsers = [
+    for (final u in defaultFirebaseUsers) Map<String, dynamic>.from(u),
+  ];
+
+  /// In-memory overrides applied when a user is edited or added in this session.
+  final Map<String, Map<String, dynamic>> _sessionEdits = {};
+  final List<Map<String, dynamic>> _sessionAdded = [];
+
   /// Latest unfiltered snapshot, used to resolve the selected user.
   List<Map<String, dynamic>> _allUsers = const [];
 
@@ -41,9 +50,40 @@ class _AdminDataPenggunaPageState extends State<AdminDataPenggunaPage> {
   @override
   void initState() {
     super.initState();
-    _usersStream = widget.usersStream == null
-        ? _defaultUsersStream()
-        : widget.usersStream!();
+    if (widget.usersStream == null) {
+      _usersStream = _defaultUsersStream();
+      _ensureDefaultUsersInFirestore();
+    } else {
+      _usersStream = widget.usersStream!();
+    }
+  }
+
+  Future<void> _ensureDefaultUsersInFirestore() async {
+    try {
+      final usersRef = FirebaseFirestore.instance.collection('users');
+      final snap = await usersRef.get();
+      final existingEmails = <String>{};
+      for (final doc in snap.docs) {
+        final email = extractUserEmail(doc.data()).toLowerCase();
+        if (email.isNotEmpty) existingEmails.add(email);
+      }
+      for (final seed in defaultFirebaseUsers) {
+        final email = extractUserEmail(seed).toLowerCase();
+        if (email.isNotEmpty && !existingEmails.contains(email)) {
+          final docId = seed['id']?.toString() ?? email;
+          final payload = <String, dynamic>{
+            'name': seed['name'],
+            'email': seed['email'],
+            'role': seed['role'],
+            'division': seed['division'],
+            'status': seed['status'] ?? 'aktif',
+          };
+          await usersRef.doc(docId).set(payload, SetOptions(merge: true));
+        }
+      }
+    } catch (e) {
+      debugPrint('Auto-seed default Firebase users warning: $e');
+    }
   }
 
   @override
@@ -76,15 +116,25 @@ class _AdminDataPenggunaPageState extends State<AdminDataPenggunaPage> {
               child: StreamBuilder<List<Map<String, dynamic>>>(
                 stream: _usersStream,
                 builder: (context, snapshot) {
-                  if (snapshot.hasError) {
-                    return const Center(
-                      child: Text('Gagal memuat data pengguna'),
+                  if (widget.usersStream != null) {
+                    if (snapshot.hasError) {
+                      return const Center(
+                        child: Text('Gagal memuat data pengguna'),
+                      );
+                    }
+                    if (!snapshot.hasData) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+                    _allUsers = _mergeUsers(
+                      baseUsers: snapshot.data!,
+                      remoteUsers: const [],
+                    );
+                  } else {
+                    _allUsers = _mergeUsers(
+                      baseUsers: _localUsers,
+                      remoteUsers: snapshot.data ?? const [],
                     );
                   }
-                  if (!snapshot.hasData) {
-                    return const Center(child: CircularProgressIndicator());
-                  }
-                  _allUsers = snapshot.data!;
                   final users = _applyFilters(_allUsers);
                   _pageCount = UserTable.pageCountFor(users.length);
                   final page = _page.clamp(0, _pageCount - 1);
@@ -109,14 +159,68 @@ class _AdminDataPenggunaPageState extends State<AdminDataPenggunaPage> {
     );
   }
 
-  Stream<List<Map<String, dynamic>>> _defaultUsersStream() => FirebaseFirestore
-      .instance
-      .collection('users')
-      .snapshots()
-      .map(
-        (snap) =>
-            snap.docs.map((d) => <String, dynamic>{'id': d.id, ...d.data()}).toList(),
+  Stream<List<Map<String, dynamic>>> _defaultUsersStream() {
+    try {
+      return FirebaseFirestore.instance
+          .collection('users')
+          .snapshots()
+          .map(
+            (snap) => snap.docs
+                .map((d) => <String, dynamic>{'id': d.id, ...d.data()})
+                .toList(),
+          );
+    } catch (_) {
+      return Stream.value(_localUsers);
+    }
+  }
+
+  List<Map<String, dynamic>> _mergeUsers({
+    required List<Map<String, dynamic>> baseUsers,
+    required List<Map<String, dynamic>> remoteUsers,
+  }) {
+    final merged = <Map<String, dynamic>>[
+      for (final u in baseUsers) Map<String, dynamic>.from(u),
+    ];
+
+    for (final remote in remoteUsers) {
+      final remoteEmail = extractUserEmail(remote).toLowerCase();
+      final remoteId = remote['id']?.toString();
+      final index = merged.indexWhere((item) {
+        final itemEmail = extractUserEmail(item).toLowerCase();
+        final itemId = item['id']?.toString();
+        return (remoteEmail.isNotEmpty && itemEmail == remoteEmail) ||
+            (remoteId != null && remoteId.isNotEmpty && itemId == remoteId);
+      });
+      if (index >= 0) {
+        merged[index] = {...merged[index], ...remote};
+      } else {
+        merged.add(Map<String, dynamic>.from(remote));
+      }
+    }
+
+    for (var i = 0; i < merged.length; i++) {
+      final item = merged[i];
+      final keyById = item['id']?.toString();
+      final keyByEmail = extractUserEmail(item).toLowerCase();
+      final edit = (keyById != null ? _sessionEdits[keyById] : null) ??
+          (keyByEmail.isNotEmpty ? _sessionEdits[keyByEmail] : null);
+      if (edit != null) {
+        merged[i] = {...item, ...edit};
+      }
+    }
+
+    for (final added in _sessionAdded) {
+      final addedEmail = extractUserEmail(added).toLowerCase();
+      final exists = merged.any(
+        (u) => extractUserEmail(u).toLowerCase() == addedEmail,
       );
+      if (!exists) {
+        merged.add(Map<String, dynamic>.from(added));
+      }
+    }
+
+    return merged;
+  }
 
   List<Map<String, dynamic>> _applyFilters(List<Map<String, dynamic>> all) {
     final query = _search.text.trim().toLowerCase();
@@ -251,6 +355,32 @@ class _AdminDataPenggunaPageState extends State<AdminDataPenggunaPage> {
       title: 'Tambah Pengguna',
       isEdit: false,
       onSave: (name, email, role, division, status, [password]) async {
+        final payload = <String, dynamic>{
+          'name': name,
+          'email': email,
+          'role': role,
+          'division': division,
+          'status': 'aktif',
+        };
+
+        if (mounted) {
+          setState(() {
+            final lowerEmail = email.toLowerCase();
+            final idx = _localUsers.indexWhere(
+              (u) => extractUserEmail(u).toLowerCase() == lowerEmail,
+            );
+            if (idx >= 0) {
+              _localUsers[idx] = {..._localUsers[idx], ...payload};
+            } else {
+              _localUsers.add(Map<String, dynamic>.from(payload));
+            }
+            _sessionAdded.removeWhere(
+              (u) => extractUserEmail(u).toLowerCase() == lowerEmail,
+            );
+            _sessionAdded.add(Map<String, dynamic>.from(payload));
+          });
+        }
+
         String? createdUid;
         if (password != null && password.isNotEmpty) {
           try {
@@ -274,16 +404,9 @@ class _AdminDataPenggunaPageState extends State<AdminDataPenggunaPage> {
         }
 
         try {
-          final payload = <String, dynamic>{
-            'name': name,
-            'email': email,
-            'role': role,
-            'division': division,
-            'status': 'aktif',
-          };
           final usersRef = FirebaseFirestore.instance.collection('users');
           if (createdUid != null && createdUid.isNotEmpty) {
-            await usersRef.doc(createdUid).set(payload);
+            await usersRef.doc(createdUid).set(payload, SetOptions(merge: true));
           } else {
             await usersRef.add(payload);
           }
@@ -311,34 +434,59 @@ class _AdminDataPenggunaPageState extends State<AdminDataPenggunaPage> {
       initialDivision: initialDivision,
       initialStatus: initialStatus,
       onSave: (name, email, role, division, status, [password]) async {
+        final payload = <String, dynamic>{
+          'name': name,
+          'email': email,
+          'role': role,
+          'division': division,
+          'status': status,
+          if (password != null && password.isNotEmpty) 'password': password,
+        };
+        final docId = data['id'] as String?;
+
+        if (mounted) {
+          setState(() {
+            final lowerInitial = initialEmail.toLowerCase();
+            if (docId != null && docId.isNotEmpty) {
+              _sessionEdits[docId] = {...data, ...payload};
+            }
+            if (lowerInitial.isNotEmpty) {
+              _sessionEdits[lowerInitial] = {...data, ...payload};
+            }
+            if (email.toLowerCase() != lowerInitial) {
+              _sessionEdits[email.toLowerCase()] = {...data, ...payload};
+            }
+            final idx = _localUsers.indexWhere((u) {
+              final uEmail = extractUserEmail(u).toLowerCase();
+              final uId = u['id']?.toString();
+              return (lowerInitial.isNotEmpty && uEmail == lowerInitial) ||
+                  (docId != null && docId.isNotEmpty && uId == docId);
+            });
+            if (idx >= 0) {
+              _localUsers[idx] = {..._localUsers[idx], ...payload};
+            }
+            _selectedEmail = email;
+            _selectedUser = {...data, ...payload};
+          });
+        }
+
         try {
           final usersRef = FirebaseFirestore.instance.collection('users');
-          final payload = <String, dynamic>{
-            'name': name,
-            'email': email,
-            'role': role,
-            'division': division,
-            'status': status,
-            if (password != null && password.isNotEmpty) 'password': password,
-          };
-
-          final docId = data['id'] as String?;
           if (docId != null && docId.isNotEmpty) {
-            await usersRef.doc(docId).update(payload);
+            await usersRef.doc(docId).set(payload, SetOptions(merge: true));
           } else {
             final snap = await usersRef
                 .where('email', isEqualTo: initialEmail)
                 .limit(1)
                 .get();
             if (snap.docs.isNotEmpty) {
-              await snap.docs.first.reference.update(payload);
+              await snap.docs.first.reference.set(
+                payload,
+                SetOptions(merge: true),
+              );
+            } else {
+              await usersRef.add(payload);
             }
-          }
-          if (mounted) {
-            setState(() {
-              _selectedEmail = email;
-              _selectedUser = {...data, ...payload};
-            });
           }
         } catch (e) {
           debugPrint('Firestore edit user warning: $e');

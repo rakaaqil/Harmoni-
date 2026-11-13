@@ -15,6 +15,43 @@ const divisions = [
 /// Status values stored in the `status` field of a user document.
 const statuses = ['aktif', 'nonaktif'];
 
+/// Default Firebase Authentication accounts seeded into the Super Admin table
+/// and Firestore `users` collection when not yet present.
+const List<Map<String, dynamic>> defaultFirebaseUsers = [
+  {
+    'id': 'seed_staff',
+    'name': 'Staf Rawat Inap',
+    'email': 'staff@harmoni.com',
+    'role': 'staff_divisi',
+    'division': 'Rawat Inap',
+    'status': 'aktif',
+  },
+  {
+    'id': 'seed_kadiv',
+    'name': 'Kepala Divisi Apotek',
+    'email': 'kadiv@harmoni.com',
+    'role': 'kepala_divisi',
+    'division': 'Apotek',
+    'status': 'aktif',
+  },
+  {
+    'id': 'seed_karumkit',
+    'name': 'Kepala Rumah Sakit',
+    'email': 'karumkit@harmoni.com',
+    'role': 'kepala_rs',
+    'division': '-',
+    'status': 'aktif',
+  },
+  {
+    'id': 'seed_admin',
+    'name': 'Super Admin',
+    'email': 'admin@gmail.com',
+    'role': 'super_admin',
+    'division': '-',
+    'status': 'aktif',
+  },
+];
+
 String roleLabel(String role) => switch (role) {
   'staff_divisi' => 'Staff Divisi',
   'kepala_divisi' => 'Kepala Divisi',

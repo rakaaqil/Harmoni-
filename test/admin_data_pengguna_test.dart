@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:app_bagus/admin_data_pengguna_page.dart';
+import 'package:app_bagus/constants/user_options.dart';
 
 final _sampleUsers = [
   {
@@ -207,4 +208,56 @@ void main() {
     expect(find.byKey(const ValueKey('user-staff@harmoni.com')), findsNothing);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets(
+    'defaultFirebaseUsers fallback lists Firebase Auth accounts and supports immediate edit/toggle',
+    (tester) async {
+      final emails = defaultFirebaseUsers.map(extractUserEmail).toSet();
+      expect(
+        emails,
+        containsAll([
+          'staff@harmoni.com',
+          'kadiv@harmoni.com',
+          'karumkit@harmoni.com',
+          'admin@gmail.com',
+        ]),
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: ThemeData(fontFamily: 'SF Pro Display'),
+          home: const AdminDataPenggunaPage(),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey('user-staff@harmoni.com')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('user-kadiv@harmoni.com')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('user-karumkit@harmoni.com')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('user-admin@gmail.com')),
+        findsOneWidget,
+      );
+
+      // Toggle status of staff@harmoni.com to nonaktif and verify immediate update
+      await tester.tap(find.byKey(const ValueKey('user-staff@harmoni.com')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('admin-toggle-status')));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const ValueKey('user-staff@harmoni.com')));
+      await tester.pumpAndSettle();
+      expect(find.text('Aktifkan'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
 }
