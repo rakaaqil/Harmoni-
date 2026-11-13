@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'constants/app_colors.dart';
 import 'tinjau_laporan_page.dart';
+import 'widgets/division_sidebar.dart';
 import 'widgets/review_bar.dart';
 
 /// Static staff summary matched to 440x956 reference.
@@ -26,14 +27,7 @@ class _DataSummaryPageState extends State<DataSummaryPage> {
   bool _showDatePopup = false;
   bool _showDivisionSidebar = false;
 
-  static const _divisions = [
-    'Divisi Apotek',
-    'Divisi Kebidanan',
-    'Divisi Pendaftaran',
-    'Divisi Rawat Inap',
-    'Divisi Rawat Jalan',
-    'Divisi UGD',
-  ];
+  static const _divisions = kHospitalDivisions;
 
   String get _formattedDate =>
       '$_selectedYear,${_selectedMonth.toString().padLeft(2, '0')}';
@@ -94,10 +88,14 @@ class _DataSummaryPageState extends State<DataSummaryPage> {
                       _SummaryFilter(
                         division: _selectedDivision,
                         dateText: _formattedDate,
-                        onDivisionTap: () =>
-                            setState(() => _showDivisionSidebar = true),
-                        onDateTap: () =>
-                            setState(() => _showDatePopup = !_showDatePopup),
+                        onDivisionTap: () => setState(() {
+                          _showDatePopup = false;
+                          _showDivisionSidebar = !_showDivisionSidebar;
+                        }),
+                        onDateTap: () => setState(() {
+                          _showDivisionSidebar = false;
+                          _showDatePopup = !_showDatePopup;
+                        }),
                       ),
                       const SizedBox(height: 17),
                       Expanded(
@@ -141,9 +139,10 @@ class _DataSummaryPageState extends State<DataSummaryPage> {
                     top: 0,
                     left: 0,
                     bottom: 0,
-                    child: _DivisionSidebar(
+                    child: DivisionSidebar(
                       divisions: _divisions,
                       selectedDivision: _selectedDivision,
+                      keyPrefix: 'division',
                       onSelect: (division) => setState(() {
                         _selectedDivision = division;
                         _showDivisionSidebar = false;
@@ -322,68 +321,6 @@ class _SummaryFilter extends StatelessWidget {
           ),
         ),
       ],
-    ),
-  );
-}
-
-class _DivisionSidebar extends StatelessWidget {
-  final List<String> divisions;
-  final String selectedDivision;
-  final ValueChanged<String> onSelect;
-
-  const _DivisionSidebar({
-    required this.divisions,
-    required this.selectedDivision,
-    required this.onSelect,
-  });
-
-  @override
-  Widget build(BuildContext context) => Material(
-    color: Colors.white,
-    elevation: 8,
-    child: SizedBox(
-      width: 228,
-      child: SafeArea(
-        bottom: false,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(19, 12, 25, 0),
-          child: ListView.separated(
-            padding: EdgeInsets.zero,
-            itemCount: divisions.length,
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            separatorBuilder: (_, _) => const SizedBox(height: 12),
-            itemBuilder: (_, index) {
-              final division = divisions[index];
-              final selected = division == selectedDivision;
-              return GestureDetector(
-                key: ValueKey('division-$division'),
-                onTap: () => onSelect(division),
-                child: Container(
-                  height: 28,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    color: selected
-                        ? const Color(0xFF16B5AE)
-                        : const Color(0xFFD9D9D9),
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  child: Text(
-                    division,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.black,
-                    ),
-                  ),
-                ),
-              );
-            },
-          ),
-        ),
-      ),
     ),
   );
 }

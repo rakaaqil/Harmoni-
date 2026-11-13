@@ -63,6 +63,18 @@ class _LoginPageState extends State<LoginPage> {
         } catch (e) {
           debugPrint('Lookup username sebelum auth gagal: $e');
         }
+        if (!authEmail.contains('@')) {
+          final lowerInput = email.toLowerCase();
+          for (final seed in defaultFirebaseUsers) {
+            final seedEmail = seed['email']?.toString().trim() ?? '';
+            final seedName = seed['name']?.toString().trim().toLowerCase() ?? '';
+            final seedPrefix = seedEmail.split('@').first.toLowerCase();
+            if (seedName == lowerInput || seedPrefix == lowerInput) {
+              authEmail = seedEmail;
+              break;
+            }
+          }
+        }
       }
 
       final credential = await FirebaseAuth.instance
@@ -87,13 +99,34 @@ class _LoginPageState extends State<LoginPage> {
         return;
       }
 
-      if (!mounted) return;
-
       final profile = _buildProfile(
         data: data,
         user: credential.user,
         inputEmail: authEmail,
       );
+
+      if (data == null) {
+        try {
+          final users = FirebaseFirestore.instance.collection('users');
+          final uid = credential.user?.uid;
+          final payload = <String, dynamic>{
+            'name': profile.name,
+            'email': profile.email,
+            'role': profile.role,
+            'division': profile.division ?? '-',
+            'status': 'aktif',
+          };
+          if (uid != null && uid.isNotEmpty) {
+            await users.doc(uid).set(payload, SetOptions(merge: true));
+          } else {
+            await users.add(payload);
+          }
+        } catch (e) {
+          debugPrint('Auto-register user ke Firestore warning: $e');
+        }
+      }
+
+      if (!mounted) return;
 
       final Widget destination;
       if (profile.isSuperAdmin) {
@@ -182,18 +215,28 @@ class _LoginPageState extends State<LoginPage> {
   }) {
     final effectiveEmail =
         (data?['email'] ?? user?.email ?? inputEmail).toString().trim();
+    Map<String, dynamic>? resolvedData = data;
+    if (resolvedData == null) {
+      final lowerEffective = effectiveEmail.toLowerCase();
+      for (final seed in defaultFirebaseUsers) {
+        if (seed['email']?.toString().trim().toLowerCase() == lowerEffective) {
+          resolvedData = seed;
+          break;
+        }
+      }
+    }
     final emailPrefix = effectiveEmail.split('@').first;
-    final rawName = (data?['name'] ??
-            data?['nama'] ??
-            data?['username'] ??
+    final rawName = (resolvedData?['name'] ??
+            resolvedData?['nama'] ??
+            resolvedData?['username'] ??
             user?.displayName ??
             emailPrefix)
         .toString()
         .trim();
     final rawDivision =
-        (data?['division'] ?? data?['divisi'])?.toString().trim();
+        (resolvedData?['division'] ?? resolvedData?['divisi'])?.toString().trim();
 
-    final rawRoleFromDoc = (data?['role'] ?? data?['peran'])
+    final rawRoleFromDoc = (resolvedData?['role'] ?? resolvedData?['peran'])
         ?.toString()
         .trim()
         .toLowerCase();
