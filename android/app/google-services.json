@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "563006810168",
+    "project_id": "harmoni-d08bf",
+    "storage_bucket": "harmoni-d08bf.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:563006810168:android:cdb7edfdaa8446daaa1ecd",
+        "android_client_info": {
+          "package_name": "com.example.app_bagus"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDzYknnzfpItknbk2-ddiVKS6J5kMMS5mk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
